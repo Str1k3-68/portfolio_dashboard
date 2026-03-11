@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas import (
+    EnsembleSummaryRow,
     PerformancePoint,
     SymphonyBacktestResponse,
     SymphonyBenchmarkResponse,
@@ -22,6 +23,7 @@ from app.services.backtest_cache import get_symphony_backtest_data
 from app.services.symphony_allocations_read import get_symphony_allocations_data
 from app.services.symphony_benchmark_read import get_symphony_benchmark_data
 from app.services.symphony_catalog import get_symphony_catalog_data
+from app.services.ensemble_read import get_ensemble_summaries
 from app.services.symphony_list_read import get_symphonies_list_data
 from app.services.symphony_read import (
     get_symphony_performance_data,
@@ -56,6 +58,25 @@ def list_symphonies(
         get_client_for_account_fn=get_client_for_account,
         test_credential=TEST_CREDENTIAL,
     )
+
+
+# ------------------------------------------------------------------
+# Ensemble summaries
+# ------------------------------------------------------------------
+
+@router.get("/ensembles", response_model=list[EnsembleSummaryRow])
+def get_ensembles(
+    account_id: Optional[str] = Query(None, description="Sub-account ID, all:<cred>, or all"),
+    db: Session = Depends(get_db),
+):
+    """Aggregate performance summaries for Alt ensembles."""
+    symphonies = get_symphonies_list_data(
+        db=db,
+        account_id=account_id,
+        get_client_for_account_fn=get_client_for_account,
+        test_credential=TEST_CREDENTIAL,
+    )
+    return get_ensemble_summaries(symphonies)
 
 
 # ------------------------------------------------------------------

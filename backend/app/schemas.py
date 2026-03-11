@@ -282,6 +282,13 @@ class SymphonyHoldingRow(BaseModel):
     last_percent_change: float
 
 
+class EnsembleTag(BaseModel):
+    letter: str
+    name: str
+    color: str
+    weight: float
+
+
 class SymphonyListRow(BaseModel):
     id: str
     position_id: str
@@ -306,6 +313,7 @@ class SymphonyListRow(BaseModel):
     next_rebalance_on: Optional[str] = None
     rebalance_frequency: str
     holdings: List[SymphonyHoldingRow]
+    ensemble_tags: List[EnsembleTag] = []
 
 
 class SymphonyCatalogRow(BaseModel):
@@ -393,3 +401,23 @@ class SymphonyTradePreviewResponse(BaseModel):
     symphony_value: float
     recommended_trades: List[SymphonyTradeRecommendation]
     markets_closed: Optional[bool] = None
+
+
+class EnsembleComponentRow(BaseModel):
+    symphony_id: str
+    label: str
+    weight: float
+    value: float = 0.0
+    today_return_pct: float = 0.0
+    twr: float = 0.0
+
+
+class EnsembleSummaryRow(BaseModel):
+    letter: str
+    name: str
+    color: str
+    total_aum: float = 0.0
+    weighted_today_return: float = 0.0
+    weighted_twr: float = 0.0
+    component_count: int = 0
+    components: List[EnsembleComponentRow] = []

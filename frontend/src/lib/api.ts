@@ -176,6 +176,13 @@ export interface SymphonyHolding {
   last_percent_change: number;
 }
 
+export interface EnsembleTag {
+  letter: string;
+  name: string;
+  color: string;
+  weight: number;
+}
+
 export interface SymphonyInfo {
   id: string;
   position_id: string;
@@ -200,6 +207,27 @@ export interface SymphonyInfo {
   next_rebalance_on: string | null;
   rebalance_frequency: string;
   holdings: SymphonyHolding[];
+  ensemble_tags: EnsembleTag[];
+}
+
+export interface EnsembleComponent {
+  symphony_id: string;
+  label: string;
+  weight: number;
+  value: number;
+  today_return_pct: number;
+  twr: number;
+}
+
+export interface EnsembleSummary {
+  letter: string;
+  name: string;
+  color: string;
+  total_aum: number;
+  weighted_today_return: number;
+  weighted_twr: number;
+  component_count: number;
+  components: EnsembleComponent[];
 }
 
 export interface SymphonySummary {
@@ -461,6 +489,8 @@ export const api = {
     }).then((r) => { if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); }),
   getSymphonies: (accountId?: string) =>
     fetchJSON<SymphonyInfo[]>(`/symphonies${_qs(accountId)}`),
+  getEnsembles: (accountId?: string) =>
+    fetchJSON<EnsembleSummary[]>(`/ensembles${_qs(accountId)}`),
   getSymphonyPerformance: (symphonyId: string, accountId: string) =>
     fetchJSON<PerformancePoint[]>(
       `/symphonies/${symphonyId}/performance?account_id=${encodeURIComponent(accountId)}`

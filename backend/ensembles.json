@@ -1,0 +1,74 @@
+{
+  "ensembles": {
+    "A": {
+      "name": "Alt A",
+      "color": "#f97316",
+      "symphonies": {
+        "DK03k4aivJPREnDwuuE8": { "weight": 50, "label": "Sisyphus" },
+        "AoUOZ3rtMt59I0BdHOYv": { "weight": 25, "label": "CS 11/23/24" },
+        "7M7KSQyycDGlvoHaslVH": { "weight": 25, "label": "Short Quickly" }
+      }
+    },
+    "C": {
+      "name": "Alt C",
+      "color": "#10b981",
+      "symphonies": {
+        "AoUOZ3rtMt59I0BdHOYv": { "weight": 30, "label": "CS 11/23/24" },
+        "kYqLdesZYZ35jc2IS7yv": { "weight": 30, "label": "Protoculture v16" },
+        "KCS3OIy68ggdYw2p7rcA": { "weight": 20, "label": "Doomsday" },
+        "gm5EEp89Nj7pyOuqlLNr": { "weight": 20, "label": "KMLM SVIX BSC" }
+      }
+    },
+    "D": {
+      "name": "Alt D",
+      "color": "#eab308",
+      "symphonies": {
+        "kYqLdesZYZ35jc2IS7yv": { "weight": 30, "label": "Protoculture v16" },
+        "j3gM59rklky1dytz34UN": { "weight": 20, "label": "Feaver FTLT" },
+        "KCS3OIy68ggdYw2p7rcA": { "weight": 20, "label": "Doomsday" },
+        "qomyp4f88qqphltkluvu": { "weight": 15, "label": "Holy Novamatic" },
+        "gm5EEp89Nj7pyOuqlLNr": { "weight": 15, "label": "KMLM SVIX BSC" }
+      }
+    },
+    "E": {
+      "name": "Alt E",
+      "color": "#ef4444",
+      "symphonies": {
+        "KCS3OIy68ggdYw2p7rcA": { "weight": 25, "label": "Doomsday" },
+        "kYqLdesZYZ35jc2IS7yv": { "weight": 25, "label": "Protoculture v16" },
+        "AoUOZ3rtMt59I0BdHOYv": { "weight": 20, "label": "CS 11/23/24" },
+        "gm5EEp89Nj7pyOuqlLNr": { "weight": 15, "label": "KMLM SVIX BSC" },
+        "qomyp4f88qqphltkluvu": { "weight": 15, "label": "Holy Novamatic" }
+      }
+    },
+    "H": {
+      "name": "Alt H",
+      "color": "#3b82f6",
+      "symphonies": {
+        "kYqLdesZYZ35jc2IS7yv": { "weight": 35, "label": "Protoculture v16" },
+        "9vphYDDHU3wOpJdYtxbJ": { "weight": 20, "label": "NOVA BSC DE Shaw" },
+        "gm5EEp89Nj7pyOuqlLNr": { "weight": 15, "label": "KMLM SVIX BSC" },
+        "KCS3OIy68ggdYw2p7rcA": { "weight": 15, "label": "Doomsday" },
+        "LLDLvAuEPJ06F7fEsqBX": { "weight": 15, "label": "BASE 1.0d SD7" }
+      }
+    },
+    "I": {
+      "name": "Alt I",
+      "color": "#22d3ee",
+      "symphonies": {
+        "AoUOZ3rtMt59I0BdHOYv": { "weight": 50, "label": "CS 11/23/24" },
+        "7M7KSQyycDGlvoHaslVH": { "weight": 25, "label": "Short Quickly" },
+        "DK03k4aivJPREnDwuuE8": { "weight": 25, "label": "Sisyphus" }
+      }
+    },
+    "J": {
+      "name": "Alt J",
+      "color": "#c084fc",
+      "symphonies": {
+        "PflDFC9t6Ed5826s1wTx": { "weight": 50, "label": "Top 5yr B13" },
+        "kYqLdesZYZ35jc2IS7yv": { "weight": 25, "label": "Protoculture v16" },
+        "KCS3OIy68ggdYw2p7rcA": { "weight": 25, "label": "Doomsday" }
+      }
+    }
+  }
+}

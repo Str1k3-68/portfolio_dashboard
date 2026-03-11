@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Account, SymphonyDailyMetrics, SymphonyDailyPortfolio
 from app.services.account_scope import resolve_account_ids
+from app.services.ensemble_read import build_ensemble_tag_map
 
 logger = logging.getLogger(__name__)
 
@@ -296,5 +297,10 @@ def get_symphonies_list_data(
                 )
         except Exception as exc:
             logger.warning("Failed to fetch symphonies for account %s: %s", aid, exc)
+
+    # Inject ensemble tags
+    tag_map = build_ensemble_tag_map()
+    for row in result:
+        row["ensemble_tags"] = tag_map.get(row["id"], [])
 
     return result

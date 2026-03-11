@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AccountSwitcher } from "@/components/AccountSwitcher";
+import { EnsembleSummaryCards } from "@/components/EnsembleSummaryCards";
 import { HelpModal } from "@/components/HelpModal";
 import { HoldingsList } from "@/components/HoldingsList";
 import { HoldingsPie } from "@/components/HoldingsPie";
@@ -39,6 +40,7 @@ import { PerformanceChart } from "@/features/charting/components/PerformanceChar
 import { SettingsModal } from "@/features/settings/components/SettingsModalContainer";
 import { TradePreview } from "@/features/trade-preview/components/TradePreviewContainer";
 import { useFinnhubQuotes } from "@/hooks/useFinnhubQuotes";
+import { api, EnsembleSummary } from "@/lib/api";
 
 export default function DashboardPageContainer() {
   const [period, setPeriod] = useState<DashboardPeriod>("ALL");
@@ -47,6 +49,7 @@ export default function DashboardPageContainer() {
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [dismissedIraWarningKey, setDismissedIraWarningKey] = useState<string | null>(null);
+  const [ensembleFilter, setEnsembleFilter] = useState<string | null>(null);
   const {
     accounts,
     bootstrapLoading,
@@ -208,6 +211,14 @@ export default function DashboardPageContainer() {
     applyLiveOverlay,
   });
 
+  // Ensemble data
+  const [ensembles, setEnsembles] = useState<EnsembleSummary[]>([]);
+  useEffect(() => {
+    if (symphonies.length > 0) {
+      api.getEnsembles(resolvedAccountId).then(setEnsembles).catch(() => setEnsembles([]));
+    }
+  }, [symphonies, resolvedAccountId]);
+
   const holdingSymbols = (holdings?.holdings ?? [])
     .filter((holding) => holding.market_value > 0.01)
     .map((holding) => holding.symbol);
@@ -360,6 +371,14 @@ export default function DashboardPageContainer() {
 
         <MetricCards summary={summary!} />
 
+        {ensembles.length > 0 && (
+          <EnsembleSummaryCards
+            ensembles={ensembles}
+            onFilterChange={setEnsembleFilter}
+            activeFilter={ensembleFilter}
+          />
+        )}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <HoldingsPie holdings={holdings} />
@@ -380,6 +399,7 @@ export default function DashboardPageContainer() {
           onRefresh={refreshSymphonies}
           refreshLoading={symphoniesRefreshing}
           autoRefreshEnabled={liveEnabled}
+          ensembleFilter={ensembleFilter}
         />
 
         <TradePreview

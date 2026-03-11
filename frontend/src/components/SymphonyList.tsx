@@ -13,6 +13,7 @@ interface Props {
   onRefresh?: () => void | Promise<void>;
   refreshLoading?: boolean;
   autoRefreshEnabled?: boolean;
+  ensembleFilter?: string | null;
 }
 
 function fmtDollar(v: number): string {
@@ -31,7 +32,7 @@ function colorVal(v: number): string {
   return "text-muted-foreground";
 }
 
-export function SymphonyList({ symphonies, showAccountColumn, onSelect, onRefresh, refreshLoading, autoRefreshEnabled = true }: Props) {
+export function SymphonyList({ symphonies, showAccountColumn, onSelect, onRefresh, refreshLoading, autoRefreshEnabled = true, ensembleFilter }: Props) {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const wrappedRefresh = useCallback(async () => {
@@ -88,6 +89,11 @@ export function SymphonyList({ symphonies, showAccountColumn, onSelect, onRefres
         )}
       </div>
       <div data-testid="symphony-table" className="max-h-[400px] overflow-y-auto overflow-x-hidden">
+        {ensembleFilter && (
+          <div className="mb-2 text-xs text-muted-foreground">
+            Showing symphonies in <span className="font-semibold text-foreground">Alt {ensembleFilter}</span>
+          </div>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground uppercase tracking-wider">
@@ -112,7 +118,12 @@ export function SymphonyList({ symphonies, showAccountColumn, onSelect, onRefres
             </tr>
           </thead>
           <tbody>
-            {symphonies.map((s) => (
+            {(ensembleFilter
+              ? symphonies.filter((s) =>
+                  s.ensemble_tags?.some((t) => t.letter === ensembleFilter)
+                )
+              : symphonies
+            ).map((s) => (
               <tr
                 key={`${s.account_id}-${s.id}`}
                 data-testid={`symphony-row-${s.id}`}
@@ -129,6 +140,19 @@ export function SymphonyList({ symphonies, showAccountColumn, onSelect, onRefres
                       style={{ backgroundColor: s.color }}
                     />
                     <span className="truncate">{s.name}</span>
+                    {s.ensemble_tags?.map((tag) => (
+                      <span
+                        key={tag.letter}
+                        className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold flex-shrink-0"
+                        style={{
+                          backgroundColor: `${tag.color}20`,
+                          color: tag.color,
+                        }}
+                        title={`${tag.name} — ${tag.weight}% weight`}
+                      >
+                        {tag.letter}
+                      </span>
+                    ))}
                   </div>
                 </td>
                 <td className="py-2.5 pr-3 text-right whitespace-nowrap">
