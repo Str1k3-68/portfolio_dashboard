@@ -422,6 +422,13 @@ def _roll_forward_cash_flow_totals(
 ) -> int:
     """Recompute cumulative cash-flow totals into existing DailyPortfolio rows.
 
+    **Settlement lag fix**: Composer's non-trade CSV reports deposits/withdrawals
+    on their *settled date*, but portfolio_value only reflects the cash on the
+    *next trading day* (T+1).  To keep net_deposits aligned with portfolio_value,
+    deposit/withdrawal effects are shifted forward by one trading day in the
+    portfolio series.  Fees and dividends are applied on their reported date
+    since they don't cause a visible PV jump.
+
     When `preserve_baseline` is True, the first portfolio row's existing totals
     are treated as a baseline offset. This keeps fallback net-deposit values
     stable for accounts where Composer non-trade reports are unavailable.
@@ -442,18 +449,71 @@ def _roll_forward_cash_flow_totals(
         .all()
     )
 
+    # Build portfolio date/value lookup for adaptive settlement detection
+    portfolio_dates = [str(r.date) for r in daily_rows]
+    pv_by_date = {str(r.date): r.portfolio_value for r in daily_rows}
+
+    def _next_portfolio_date(ds: str) -> str:
+        """Find the next portfolio date strictly after ds."""
+        for pd in portfolio_dates:
+            if pd > ds:
+                return pd
+        return ds
+
+    def _detect_effective_date(cf: CashFlow) -> str:
+        """Determine when portfolio_value actually absorbed a deposit/withdrawal.
+
+        Composer's non-trade CSV records the settled date, but PV may absorb
+        the cash on the same day (Apex/IRA) or the next trading day
+        (Alpaca/Individual).  We detect which by comparing the PV jump on the
+        cash-flow date vs the next trading day.
+        """
+        ds = str(cf.date)
+        if ds not in pv_by_date:
+            # Cash flow date not in portfolio history — shift to next available date
+            return _next_portfolio_date(ds)
+
+        idx = portfolio_dates.index(ds)
+        pv_today = pv_by_date[ds]
+        pv_prev = pv_by_date[portfolio_dates[idx - 1]] if idx > 0 else 0.0
+        next_ds = _next_portfolio_date(ds)
+        pv_next = pv_by_date.get(next_ds, pv_today)
+
+        pv_jump_today = abs(pv_today - pv_prev)
+        pv_jump_next = abs(pv_next - pv_today)
+        amt = abs(cf.amount)
+
+        if amt < 1.0:
+            return ds
+
+        # If PV absorbed ≥60% of the deposit today, it's same-day settlement
+        if pv_jump_today >= amt * 0.6:
+            return ds
+        # If PV absorbed ≥60% next day, it's T+1 settlement
+        if pv_jump_next >= amt * 0.6:
+            return next_ds
+        # Edge case: first row (no previous PV to compare)
+        if idx == 0:
+            return ds
+        # Unclear — default to next day (safer: avoids phantom negative returns)
+        return next_ds
+
     cum_deposits = 0.0
     cum_fees = 0.0
     cum_dividends = 0.0
     cum_by_date = {}
 
-    cf_by_date: dict[str, list[CashFlow]] = {}
+    # Assign each cash flow to its effective date (adaptive for deposits/withdrawals)
+    cf_by_effective_date: dict[str, list[CashFlow]] = {}
     for cf in all_cf:
-        ds = str(cf.date)
-        cf_by_date.setdefault(ds, []).append(cf)
+        if cf.type in ("deposit", "withdrawal"):
+            effective_ds = _detect_effective_date(cf)
+        else:
+            effective_ds = str(cf.date)
+        cf_by_effective_date.setdefault(effective_ds, []).append(cf)
 
-    for ds in sorted(cf_by_date.keys()):
-        for cf in cf_by_date[ds]:
+    for ds in sorted(cf_by_effective_date.keys()):
+        for cf in cf_by_effective_date[ds]:
             if cf.type == "deposit":
                 cum_deposits += cf.amount
             elif cf.type == "withdrawal":

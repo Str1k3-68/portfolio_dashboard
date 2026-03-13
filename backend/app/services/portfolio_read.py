@@ -85,7 +85,16 @@ def load_cash_flow_events(
     date_start: Optional[date],
     date_end: Optional[date],
 ) -> List[Dict]:
-    """Load external cash-flow events used for MWR calculations."""
+    """Load external cash-flow events used for MWR calculations.
+
+    **Settlement lag fix**: Deposits and withdrawals are aligned to the date
+    when portfolio_value actually absorbed the cash.  Composer's non-trade CSV
+    reports the settled date, but PV may absorb it on the same day (Apex/IRA)
+    or the next trading day (Alpaca/Individual).  Detection is adaptive per
+    cash flow event based on PV jump analysis.
+    """
+    from app.models import DailyPortfolio
+
     cf_query = db.query(CashFlow).filter(
         CashFlow.account_id.in_(account_ids),
         CashFlow.type.in_(["deposit", "withdrawal"]),
@@ -94,7 +103,59 @@ def load_cash_flow_events(
         cf_query = cf_query.filter(CashFlow.date >= date_start)
     if date_end:
         cf_query = cf_query.filter(CashFlow.date <= date_end)
-    return [{"date": cf.date, "amount": cf.amount} for cf in cf_query.all()]
+
+    raw_events = cf_query.all()
+    if not raw_events:
+        return []
+
+    # Build per-account PV lookup for adaptive settlement detection
+    # (each account may have different settlement timing)
+    _pv_cache: Dict[str, Dict[str, float]] = {}
+    _dates_cache: Dict[str, List[str]] = {}
+
+    def _get_pv_data(account_id: str):
+        if account_id not in _pv_cache:
+            rows = db.query(DailyPortfolio).filter_by(
+                account_id=account_id
+            ).order_by(DailyPortfolio.date).all()
+            _dates_cache[account_id] = [str(r.date) for r in rows]
+            _pv_cache[account_id] = {str(r.date): r.portfolio_value for r in rows}
+        return _dates_cache[account_id], _pv_cache[account_id]
+
+    def _detect_effective_date(cf) -> date:
+        portfolio_dates, pv_by_date = _get_pv_data(cf.account_id)
+        ds = str(cf.date)
+
+        def _next_pd(d: str) -> str:
+            for pd in portfolio_dates:
+                if pd > d:
+                    return pd
+            return d
+
+        if ds not in pv_by_date:
+            next_ds = _next_pd(ds)
+            return date.fromisoformat(next_ds)
+
+        idx = portfolio_dates.index(ds)
+        pv_today = pv_by_date[ds]
+        pv_prev = pv_by_date[portfolio_dates[idx - 1]] if idx > 0 else 0.0
+        next_ds = _next_pd(ds)
+        pv_next = pv_by_date.get(next_ds, pv_today)
+        amt = abs(cf.amount)
+
+        if amt < 1.0 or idx == 0:
+            return cf.date
+
+        if abs(pv_today - pv_prev) >= amt * 0.6:
+            return cf.date
+        if abs(pv_next - pv_today) >= amt * 0.6:
+            return date.fromisoformat(next_ds)
+        return date.fromisoformat(next_ds)  # default: shift forward (safer)
+
+    return [
+        {"date": _detect_effective_date(cf), "amount": cf.amount}
+        for cf in raw_events
+    ]
 
 
 def get_portfolio_summary_data(
