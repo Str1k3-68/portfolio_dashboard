@@ -142,8 +142,10 @@ def full_backfill(db: Session, client: ComposerClient, account_id: str):
     # 1. Sync transactions
     _safe_step("transactions", _sync_transactions, db, client, account_id, since="2020-01-01")
 
-    # 2. Sync cash flows (deposits, fees, dividends)
-    _safe_step("cash_flows", _sync_cash_flows, db, client, account_id, since="2020-01-01")
+    # 2. Sync cash flows (deposits, fees, dividends) — MUST succeed on first sync
+    #    or net_deposits will be zero for all rows, causing phantom returns.
+    _safe_step("cash_flows", _sync_cash_flows, db, client, account_id, since="2020-01-01",
+               raise_on_failure=True)
 
     # 3. Sync portfolio history (daily values)
     _safe_step("portfolio_history", _sync_portfolio_history, db, client, account_id)

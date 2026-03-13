@@ -322,32 +322,41 @@ def compute_drawdown_stats(pv_series: List[float]) -> Dict:
     return {"median_drawdown": median_dd, "longest_drawdown_days": longest, "median_drawdown_days": median_len}
 
 
-def compute_volatility(daily_returns: List[float]) -> float:
+def compute_volatility(daily_returns: List[float], trading_mask: Optional[List[bool]] = None) -> float:
     """Annualized volatility as a decimal.
 
     *daily_returns* should NOT include the leading day-0 zero; pass
     ``daily_returns[1:]``.
 
-    Non-trading days (weekends/holidays with exactly 0.0 return) are
-    excluded so that only actual trading-day returns contribute to the
-    standard deviation, matching industry convention (√252 annualisation).
+    When *trading_mask* is provided, only days where the mask is True are
+    included.  This correctly handles genuinely flat trading days (0.0
+    return on a real session) while excluding weekends/holidays.
+
+    Falls back to including all returns when no mask is provided (callers
+    that don't yet pass dates).
     """
-    trading = [r for r in daily_returns if r != 0.0]
+    if trading_mask is not None:
+        trading = [r for r, m in zip(daily_returns, trading_mask) if m]
+    else:
+        trading = list(daily_returns)
     if len(trading) < 2:
         return 0.0
     vol = float(np.std(trading, ddof=1))
     return vol * math.sqrt(252)
 
 
-def compute_sharpe(daily_returns: List[float], rf_daily: float) -> float:
+def compute_sharpe(daily_returns: List[float], rf_daily: float, trading_mask: Optional[List[bool]] = None) -> float:
     """Annualized Sharpe ratio.
 
     *daily_returns* should NOT include the leading day-0 zero.
 
-    Non-trading days (exactly 0.0 return) are excluded so that the
-    risk-adjusted ratio reflects actual trading-day performance only.
+    When *trading_mask* is provided, only days where the mask is True are
+    included (preserves genuinely flat trading days).
     """
-    trading = [r for r in daily_returns if r != 0.0]
+    if trading_mask is not None:
+        trading = [r for r, m in zip(daily_returns, trading_mask) if m]
+    else:
+        trading = list(daily_returns)
     if len(trading) < 2:
         return 0.0
     vol = float(np.std(trading, ddof=1))
@@ -357,13 +366,13 @@ def compute_sharpe(daily_returns: List[float], rf_daily: float) -> float:
     return float(np.mean(excess)) / vol * math.sqrt(252)
 
 
-def compute_sortino(daily_returns: List[float], rf_daily: float) -> float:
+def compute_sortino(daily_returns: List[float], rf_daily: float, trading_mask: Optional[List[bool]] = None) -> float:
     """Annualized Sortino ratio.
 
     *daily_returns* should NOT include the leading day-0 zero.
 
-    Non-trading days (exactly 0.0 return) are excluded so that only
-    actual trading-day downside deviation is measured.
+    When *trading_mask* is provided, only days where the mask is True are
+    included (preserves genuinely flat trading days).
 
     Downside deviation uses the **target downside deviation** (TDD),
     also called the second-order root lower partial moment (RLPM₂).
@@ -371,7 +380,10 @@ def compute_sortino(daily_returns: List[float], rf_daily: float) -> float:
     it is ``sqrt(sum(min(r-T,0)² ) / N)`` per the original Sortino &
     van der Meer (1991) definition and the CFA Institute CIPM programme.
     """
-    trading = [r for r in daily_returns if r != 0.0]
+    if trading_mask is not None:
+        trading = [r for r, m in zip(daily_returns, trading_mask) if m]
+    else:
+        trading = list(daily_returns)
     if len(trading) < 2:
         return 0.0
     downside_sq = [min(r - rf_daily, 0) ** 2 for r in trading]
@@ -441,16 +453,28 @@ def _compute_row(
     daily_rets: List[float],
     ext_flows: Dict[date, float],
     rf_daily: float,
+    trading_day_set: Optional[set] = None,
 ) -> Dict:
     """Compute the full metric dict for day *i* given pre-computed arrays.
 
     This is O(N) for the statistics that need the full returns window
     (volatility, Sharpe, Sortino, win/loss) and O(1) for everything else
     except MWR which is one IRR solve.
+
+    *trading_day_set* is an optional set of ``date`` objects representing
+    NYSE sessions.  When provided, a boolean mask is built so that vol /
+    Sharpe / Sortino correctly include genuinely flat trading days (0.0
+    return) while excluding weekends and holidays.
     """
     row: Dict = {"date": dates[i]}
     rets_window = daily_rets[1 : i + 1]  # returns excluding day-0
     days_elapsed = (dates[i] - dates[0]).days
+
+    # Build trading mask for the returns window
+    if trading_day_set is not None:
+        trading_mask: Optional[List[bool]] = [d in trading_day_set for d in dates[1 : i + 1]]
+    else:
+        trading_mask = None
 
     # --- Basic returns ---
     row["daily_return_pct"] = round(daily_rets[i] * 100, 4)
@@ -495,18 +519,18 @@ def _compute_row(
     row["median_drawdown_days"] = dd_stats["median_drawdown_days"]
 
     # --- Volatility ---
-    row["annualized_volatility"] = round(compute_volatility(rets_window) * 100, 4)
+    row["annualized_volatility"] = round(compute_volatility(rets_window, trading_mask) * 100, 4)
 
     # --- Sharpe ---
-    row["sharpe_ratio"] = round(compute_sharpe(rets_window, rf_daily), 4)
+    row["sharpe_ratio"] = round(compute_sharpe(rets_window, rf_daily, trading_mask), 4)
 
     # --- Sortino ---
-    row["sortino_ratio"] = round(compute_sortino(rets_window, rf_daily), 4)
+    row["sortino_ratio"] = round(compute_sortino(rets_window, rf_daily, trading_mask), 4)
 
-    # --- Calmar (full-precision intermediates, uses cumulative-based ann return) ---
+    # --- Calmar (uses TWR-annualized return for accurate risk-adjusted measure) ---
     max_dd_full = max_dd * 100
     row["calmar_ratio"] = round(
-        compute_calmar(ann_ret_cum, max_dd_full), 4
+        compute_calmar(ann_ret, max_dd_full), 4
     ) if days_elapsed > 0 else 0.0
 
     # --- Best / Worst day ---
@@ -550,6 +574,23 @@ def _prepare_arrays(
 # Orchestrator — full backfill (computes every day)
 # =====================================================================
 
+def _build_trading_day_set(dates: List[date]) -> Optional[set]:
+    """Build a set of NYSE trading sessions covering the date range.
+
+    Returns None if exchange_calendars is not available.
+    """
+    from app.market_hours import _HAS_CALENDAR, _NYSE_CAL
+    if not _HAS_CALENDAR or not dates:
+        return None
+    try:
+        sessions = _NYSE_CAL.sessions_in_range(
+            dates[0].isoformat(), dates[-1].isoformat()
+        )
+        return {s.date() for s in sessions}
+    except Exception:
+        return None
+
+
 def compute_all_metrics(
     daily_rows: List[Dict],
     cash_flow_events: List[Dict],
@@ -576,8 +617,10 @@ def compute_all_metrics(
         daily_rows, cash_flow_events, risk_free_rate
     )
 
+    trading_day_set = _build_trading_day_set(dates)
+
     return [
-        _compute_row(i, pv, dates, deposits, daily_rets, ext_flows, rf_daily)
+        _compute_row(i, pv, dates, deposits, daily_rets, ext_flows, rf_daily, trading_day_set)
         for i in range(len(daily_rows))
     ]
 
@@ -604,7 +647,8 @@ def compute_latest_metrics(
         daily_rows, cash_flow_events, risk_free_rate
     )
 
-    return _compute_row(len(daily_rows) - 1, pv, dates, deposits, daily_rets, ext_flows, rf_daily)
+    trading_day_set = _build_trading_day_set(dates)
+    return _compute_row(len(daily_rows) - 1, pv, dates, deposits, daily_rets, ext_flows, rf_daily, trading_day_set)
 
 
 # =====================================================================
