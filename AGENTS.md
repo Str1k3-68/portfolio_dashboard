@@ -105,6 +105,19 @@ When multiple agents (or humans) need to work in this repository concurrently:
 7. Use stacked PRs only when there is a true dependency, and call it out explicitly in the PR description (see PR template "Coordination").
 8. Avoid long-lived `git stash` entries; stashes are shared across worktrees. If you must stash, use a message identifying the agent and topic.
 
+## Headless Snapshot Automation
+
+`scripts/headless_snapshot.sh` captures a daily PNG snapshot via headless Playwright.
+It starts backend + frontend, navigates to the dashboard, triggers sync and capture,
+then shuts everything down (~30 seconds).
+
+Key constraints:
+- Requires a **production build** (`cd frontend && npm run build`) — rebuild after
+  code changes or the snapshot will show stale UI.
+- Uses `waitUntil: 'load'` (not `networkidle`) due to Finnhub WebSocket.
+- Port cleanup uses `/usr/sbin/lsof` (full path required on macOS).
+- See `docs/OPERATIONS_RUNBOOK.md` and `docs/ARCHITECTURE.md` for details.
+
 ## Naming and Deprecation Policy
 
 - Prefer `PD_TEST_MODE` and `PD_DATABASE_URL`.

@@ -103,6 +103,59 @@ cd frontend
 npx playwright install chromium
 ```
 
+## Automated Daily Snapshot
+
+A headless Playwright script captures a dashboard PNG screenshot Monday–Friday
+after market close, without requiring a browser to be open.
+
+### How It Works
+
+`scripts/headless_snapshot.sh` performs these steps:
+
+1. Kills any existing processes on ports 8000/3000
+2. Starts the backend (uvicorn) and frontend (`next start`, production mode)
+3. Launches headless Chromium via Playwright
+4. Navigates to the dashboard, waits for the chart to render
+5. Triggers a sync (refresh button) then clicks the camera button
+6. The frontend's `html-to-image` library captures a 2400×1800 PNG
+7. The PNG is uploaded to the backend and saved to `daily_snapshots/Snapshot_YYYY-MM-DD.png`
+8. Everything shuts down cleanly (~30 seconds total)
+
+### Prerequisites
+
+- **Production build required:** Run `cd frontend && npm run build` before the first run.
+  If the build is stale after code changes, re-run it.
+- **Playwright browsers:** Chromium is auto-installed on first run (cached in
+  `~/Library/Caches/ms-playwright/`).
+- **Screenshot config:** Must be enabled in `config.json` under `daily_snapshot.enabled: true`
+  with a valid `local_path`.
+
+### Manual Run
+
+```bash
+bash scripts/headless_snapshot.sh
+```
+
+Logs are written to `data/headless_snapshot.log`.
+
+### Cron Schedule (via OpenClaw)
+
+| Time (CT) | Job |
+|---|---|
+| 9:30 PM M-F | `Dashboard: Daily Snapshot` |
+
+Runs 15 minutes after the Composer data refresh (9:15 PM) to ensure fresh data.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Errno 48: address already in use` | Run `python stop.py` or `/usr/sbin/lsof -nP -iTCP:8000 -sTCP:LISTEN -t \| xargs kill -9` |
+| `networkidle` timeout | Not applicable — script uses `waitUntil: 'load'` + explicit `.recharts-wrapper` selector |
+| Camera button not found | Verify `daily_snapshot.enabled: true` in `config.json` |
+| Blank/broken chart | Re-run `cd frontend && npm run build` — stale `.next` cache |
+| `Cannot find module '@playwright/test'` | Script must run from `frontend/` dir (uses project's `node_modules`) |
+
 ## Safe Recovery Procedure
 
 Use this sequence for a clean local reset:

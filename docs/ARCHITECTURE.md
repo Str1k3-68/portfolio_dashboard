@@ -303,6 +303,33 @@ Optional:
 Legacy aliases:
 - removed after TQ-1 cleanup; do not use or reintroduce.
 
+## Automated Daily Snapshot
+
+The daily snapshot pipeline captures a PNG of the dashboard after market close
+without requiring an interactive browser session.
+
+```mermaid
+flowchart LR
+    CRON[OpenClaw Cron 9:30 PM CT] --> SH[headless_snapshot.sh]
+    SH --> BE[Backend uvicorn :8000]
+    SH --> FE[Frontend next start :3000]
+    SH --> PW[Playwright Headless Chromium]
+    PW --> FE
+    PW -->|click sync| BE
+    PW -->|click camera| FE
+    FE -->|html-to-image toPng| PNG[Snapshot PNG]
+    FE -->|POST /api/screenshot| BE
+    BE --> FS[daily_snapshots/Snapshot_YYYY-MM-DD.png]
+```
+
+Key implementation details:
+- Uses `waitUntil: 'load'` (not `networkidle`) because the Finnhub WebSocket
+  keeps the network permanently active
+- Waits for `.recharts-wrapper` selector to confirm the chart has rendered
+- Runs in ~30 seconds end-to-end (production mode)
+- Requires `npm run build` after code changes
+- See `docs/OPERATIONS_RUNBOOK.md` for troubleshooting
+
 ## TQ-1 Status
 
 TQ-1 migration is now implemented for frontend server-state. Follow-up refinements remain tracked in:

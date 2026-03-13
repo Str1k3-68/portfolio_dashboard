@@ -270,12 +270,8 @@ export function PerformanceChartCanvas({
     const yOffset = endLabelOffsetByKey[dataKey];
     if (lastIndex === undefined || yOffset === undefined) return undefined;
 
-    function renderEndLabel(props: {
-      index?: number;
-      x?: number;
-      y?: number;
-      value?: number;
-    }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function renderEndLabel(props: any) {
       if (
         props.index !== lastIndex ||
         typeof props.x !== "number" ||

@@ -58,7 +58,7 @@ export function EnsembleSummaryCards({ ensembles, onFilterChange, activeFilter }
                     ? "border-border bg-muted/60 ring-1"
                     : "border-border/50 hover:border-border hover:bg-muted/30"
                 }`}
-                style={isActive ? { ringColor: ens.color, borderColor: ens.color } : {}}
+                style={isActive ? { "--tw-ring-color": ens.color, borderColor: ens.color } as React.CSSProperties : {}}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span

@@ -61,9 +61,10 @@ export function useFinnhubQuotes(
         if (q.c && q.c > 0 && q.pc && q.pc > 0) {
           const change = q.c - q.pc;
           const changePct = (change / q.pc) * 100;
+          const price = q.c!;
           setQuotes((prev) => ({
             ...prev,
-            [sym]: { price: q.c, change, changePct },
+            [sym]: { price, change, changePct },
           }));
         }
       }
