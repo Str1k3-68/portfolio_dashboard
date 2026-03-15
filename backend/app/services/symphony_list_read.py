@@ -298,8 +298,8 @@ def get_symphonies_list_data(
         except Exception as exc:
             logger.warning("Failed to fetch symphonies for account %s: %s", aid, exc)
 
-    # Inject ensemble tags
-    tag_map = build_ensemble_tag_map()
+    # Inject ensemble tags (static config + name-based auto-detection)
+    tag_map = build_ensemble_tag_map(symphonies=result)
     for row in result:
         row["ensemble_tags"] = tag_map.get(row["id"], [])
 
