@@ -125,3 +125,18 @@
     @apply bg-background text-foreground overflow-x-hidden;
   }
 }
+
+/* Visible thin scrollbar for symphony table and similar containers */
+[data-testid="symphony-table"]::-webkit-scrollbar {
+  width: 6px;
+}
+[data-testid="symphony-table"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-testid="symphony-table"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+[data-testid="symphony-table"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
